@@ -1,0 +1,5 @@
+{
+  "routes": [
+    { "path": "/", "title": "TimeBoard Pro 일정관리 스케줄러" }
+  ]
+}
