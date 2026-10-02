@@ -206,16 +206,38 @@ kbd{font-family:inherit;font-size:.78em;padding:1px 6px;border:1px solid var(--l
 .mini-chip{font-size:.68rem;padding:1px 5px;border-radius:4px;background:var(--surface);border:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:2px solid var(--accent)}
 
 /* Gantt Chart */
-.gantt-wrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow-x:auto;padding:12px}
-.gantt-header{display:flex;border-bottom:1px solid var(--line);margin-bottom:8px}
-.gantt-title-col{width:180px;flex-shrink:0;font-weight:700;font-size:.8rem;color:var(--muted)}
-.gantt-days{display:flex;flex:1}
-.gantt-day{flex:1;min-width:30px;text-align:center;font-size:.68rem;color:var(--muted);border-left:1px solid var(--line)}
-.gantt-day.today{background:var(--accent-soft);font-weight:700;color:var(--accent)}
-.gantt-row{display:flex;align-items:center;height:32px;border-bottom:1px dashed var(--line-strong)}
-.gantt-row-title{width:180px;flex-shrink:0;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:8px}
-.gantt-timeline{flex:1;display:flex;position:relative;height:100%;align-items:center}
-.gantt-bar{position:absolute;height:18px;border-radius:4px;background:var(--accent);color:#fff;font-size:.68rem;display:flex;align-items:center;padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gantt-wrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:auto;padding:0;box-shadow:var(--shadow)}
+.gantt-inner{min-width:760px}
+.gantt-header{display:flex;position:sticky;top:0;z-index:3;border-bottom:1px solid var(--line-strong);background:var(--surface-2)}
+.gantt-title-col{width:250px;flex:0 0 250px;padding:10px 14px;font-weight:800;font-size:.78rem;color:var(--muted);border-right:1px solid var(--line-strong);position:sticky;left:0;z-index:4;background:var(--surface-2)}
+.gantt-days{display:grid;flex:1}
+.gantt-day{min-width:32px;padding:7px 2px 8px;text-align:center;font-size:.64rem;color:var(--muted);border-left:1px solid var(--line);line-height:1.2}
+.gantt-day b{display:block;font-size:.72rem;color:var(--ink);margin-top:2px}
+.gantt-day.weekend{background:color-mix(in srgb,var(--surface-2) 72%,var(--accent-soft));color:var(--faint)}
+.gantt-day.today{background:var(--accent-soft);font-weight:800;color:var(--accent);box-shadow:inset 0 -3px 0 var(--accent)}
+.gantt-body{position:relative}
+.gantt-row{display:flex;align-items:stretch;min-height:48px;border-bottom:1px solid var(--line);background:var(--surface)}
+.gantt-row:last-child{border-bottom:0}
+.gantt-row:hover{background:var(--surface-2)}
+.gantt-row-title{width:250px;flex:0 0 250px;display:flex;align-items:center;gap:7px;padding:7px 14px;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid var(--line-strong);position:sticky;left:0;z-index:2;background:inherit}
+.gantt-row-title .gantt-dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--accent)}
+.gantt-row-title .gantt-status{font-size:.65rem;color:var(--muted);margin-left:auto;flex:none}
+.gantt-timeline{flex:1;display:grid;position:relative;min-height:48px;align-items:center;background-image:linear-gradient(to right,var(--line) 1px,transparent 1px);background-size:calc(100% / var(--gantt-days)) 100%}
+.gantt-timeline::after{content:"";position:absolute;top:0;bottom:0;left:calc(var(--gantt-today) * 100% / var(--gantt-days));border-left:2px solid var(--accent);opacity:.5;pointer-events:none}
+.gantt-bar{position:absolute;height:24px;border-radius:6px;color:#fff;font-size:.68rem;display:flex;align-items:center;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 5px rgba(20,25,45,.16);z-index:1;min-width:10px}
+.gantt-bar::after{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--progress,0%);background:rgba(255,255,255,.24);pointer-events:none}
+.gantt-bar span{position:relative;z-index:1;overflow:hidden;text-overflow:ellipsis}
+.gantt-bar.done{background:#8b95a7 !important;box-shadow:none}
+.gantt-bar.urgent{background:var(--p-urgent)}
+.gantt-bar.high{background:var(--p-high)}
+.gantt-bar.mid{background:var(--p-mid);color:#2b2100}
+.gantt-bar.low{background:var(--p-low)}
+.gantt-empty{padding:34px 20px;text-align:center;color:var(--muted);font-size:.84rem}
+.gantt-legend{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px 2px;font-size:.72rem;color:var(--muted)}
+.gantt-legend span{display:inline-flex;align-items:center;gap:4px}
+.gantt-legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.gantt-legend .today-line{width:2px;height:13px;border-radius:0;background:var(--accent)}
+@media(max-width:700px){.gantt-title-col,.gantt-row-title{width:190px;flex-basis:190px}.gantt-inner{min-width:620px}}
 
 /* Analytics Dashboard */
 .analytics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
@@ -384,15 +406,27 @@ kbd{font-family:inherit;font-size:.78em;padding:1px 6px;border:1px solid var(--l
 
     <!-- 5. 간트 차트 -->
     <section id="view-gantt" class="hidden">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <h2 style="font-size:1.1rem;font-weight:700">간트 차트 (프로젝트 타임라인)</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
         <div>
-          <select id="gantt-range" style="width:auto;padding:3px 8px;font-size:.8rem">
-            <option value="14">2주 보기</option>
-            <option value="28" selected>4주 보기</option>
-            <option value="56">8주 보기</option>
+          <h2 style="font-size:1.1rem;font-weight:700">간트 차트 (프로젝트 타임라인)</h2>
+          <p style="font-size:.76rem;color:var(--muted);margin-top:2px">오늘을 기준으로 마감일과 진행 상태를 한눈에 확인하세요.</p>
+        </div>
+        <div>
+          <label for="gantt-range" style="font-size:.76rem;color:var(--muted);margin-right:5px">표시 기간</label>
+          <select id="gantt-range" style="width:auto;padding:5px 8px;font-size:.8rem">
+            <option value="14">2주</option>
+            <option value="28" selected>4주</option>
+            <option value="56">8주</option>
           </select>
         </div>
+      </div>
+      <div class="gantt-legend" aria-label="간트 차트 범례">
+        <span><i style="background:var(--p-urgent)"></i>긴급</span>
+        <span><i style="background:var(--p-high)"></i>높음</span>
+        <span><i style="background:var(--p-mid)"></i>보통</span>
+        <span><i style="background:var(--p-low)"></i>낮음</span>
+        <span><i class="today-line"></i>오늘</span>
+        <span style="margin-left:auto;color:var(--faint)">막대 안의 밝은 부분은 완료율입니다.</span>
       </div>
       <div class="gantt-wrap" id="gantt-container"></div>
     </section>
@@ -786,28 +820,42 @@ function renderGantt() {
   const container = $('#gantt-container'); container.innerHTML = '';
   const range = +$('#gantt-range').value;
   const start = fromIso(today());
-  let headerHtml = `<div class="gantt-header"><div class="gantt-title-col">프로젝트 / 작업</div><div class="gantt-days">`;
+  const dayNames = ['일','월','화','수','목','금','토'];
+  const days = [];
   for (let i = 0; i < range; i++) {
     const cur = new Date(start); cur.setDate(start.getDate() + i);
-    const ds = iso(cur);
-    headerHtml += `<div class="gantt-day ${ds === today() ? 'today' : ''}">${cur.getMonth() + 1}/${cur.getDate()}</div>`;
+    days.push({ date: iso(cur), day: cur.getDate(), month: cur.getMonth() + 1, dow: cur.getDay() });
   }
-  headerHtml += '</div></div>';
-  container.innerHTML = headerHtml;
-
-  const validTasks = state.tasks.filter(t => t.targetDate);
+  const validTasks = state.tasks.filter(t => t.targetDate).sort((a,b) => a.targetDate.localeCompare(b.targetDate));
+  const dayCols = `repeat(${range}, minmax(32px, 1fr))`;
+  let headerHtml = `<div class="gantt-inner" style="--gantt-days:${range};--gantt-today:0">
+    <div class="gantt-header">
+      <div class="gantt-title-col">프로젝트 / 작업 <span style="font-weight:500;font-size:.68rem">(${validTasks.length}건)</span></div>
+      <div class="gantt-days" style="grid-template-columns:${dayCols}">`;
+  days.forEach(d => {
+    headerHtml += `<div class="gantt-day ${d.date === today() ? 'today' : ''} ${d.dow === 0 || d.dow === 6 ? 'weekend' : ''}">${d.month}/${d.day}<b>${dayNames[d.dow]}</b></div>`;
+  });
+  headerHtml += `</div></div><div class="gantt-body">`;
+  if (!validTasks.length) headerHtml += '<div class="gantt-empty">마감일이 지정된 작업이 없습니다.<br><span style="font-size:.75rem">목록에서 작업에 마감일을 지정하면 타임라인에 표시됩니다.</span></div>';
   validTasks.forEach(t => {
     const diff = Math.round((fromIso(t.targetDate) - start) / 86400000);
-    const row = document.createElement('div'); row.className = 'gantt-row';
+    const inRange = diff >= 0 && diff < range;
+    const priority = t.priority || 'mid';
+    const progress = t.completed ? 100 : 0;
+    const status = t.completed ? '완료' : (diff < 0 ? '지연' : '진행');
     let barHtml = '';
-    if (diff >= 0 && diff < range) {
+    if (inRange) {
       const leftPct = (diff / range) * 100;
-      const widthPct = Math.max(100 / range, 4);
-      barHtml = `<div class="gantt-bar" style="left:${leftPct}%;width:${widthPct}%;background:${t.completed ? '#9aa2b5' : 'var(--accent)'}">${esc(t.text)}</div>`;
+      const widthPct = Math.max(100 / range, Math.min(18, 100 / range * 1.8));
+      barHtml = `<div class="gantt-bar ${priority} ${t.completed ? 'done' : ''}" style="left:${leftPct}%;width:${widthPct}%;--progress:${progress}%" title="${esc(t.text)} · 마감 ${t.targetDate} · ${status}"><span>${esc(t.text)}</span></div>`;
     }
-    row.innerHTML = `<div class="gantt-row-title">${esc(t.text)}</div><div class="gantt-timeline">${barHtml}</div>`;
-    container.appendChild(row);
+    headerHtml += `<div class="gantt-row">
+      <div class="gantt-row-title" title="${esc(t.text)}"><i class="gantt-dot" style="background:var(--p-${priority})"></i><span style="overflow:hidden;text-overflow:ellipsis">${esc(t.text)}</span><small class="gantt-status">${status}</small></div>
+      <div class="gantt-timeline" style="--gantt-days:${range};--gantt-today:0">${barHtml}</div>
+    </div>`;
   });
+  headerHtml += '</div></div>';
+  container.innerHTML = headerHtml;
 }
 
 /* 5. Analytics Dashboard */
