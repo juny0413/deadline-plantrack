@@ -1,4 +1,4 @@
-name: Deploy 프로젝트 플랜 to GitHub Pages
+name: Deploy TimeBoard Pro to GitHub Pages
 
 on:
   push:

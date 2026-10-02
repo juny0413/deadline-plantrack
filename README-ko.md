@@ -1,6 +1,6 @@
-# 프로젝트 플랜 1.0.2 Chrome PWA
+# TimeBoard Pro 1.0.1 Chrome PWA
 
-이 PWA는 제공된 `index.html` 기반의 프로젝트 플랜 앱을 그대로 사용하고, Chrome 설치 기능만 추가한 버전입니다.
+이 PWA는 제공된 `일정관리_스케줄러1.html.html` 원본 앱을 그대로 사용하고, Chrome 설치 기능만 추가한 버전입니다.
 
 ## 설치
 
