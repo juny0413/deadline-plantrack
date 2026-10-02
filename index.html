@@ -227,6 +227,9 @@ kbd{font-family:inherit;font-size:.78em;padding:1px 6px;border:1px solid var(--l
 .gantt-bar{position:absolute;height:24px;cursor:pointer;border-radius:6px;color:#fff;font-size:.68rem;display:flex;align-items:center;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 5px rgba(20,25,45,.16);z-index:1;min-width:10px}
 .gantt-bar::after{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--progress,0%);background:rgba(255,255,255,.24);pointer-events:none}
 .gantt-bar span{position:relative;z-index:1;overflow:hidden;text-overflow:ellipsis}
+.gantt-handle{position:absolute;top:0;bottom:0;width:8px;z-index:3;cursor:ew-resize}
+.gantt-handle.left{left:0}.gantt-handle.right{right:0}
+.gantt-bar.dragging{opacity:.78;box-shadow:0 4px 10px rgba(20,25,45,.28)}
 .gantt-bar.done{background:#8b95a7 !important;box-shadow:none}
 .gantt-bar.project{height:28px;border-radius:7px;font-weight:800;box-shadow:0 2px 6px rgba(20,25,45,.18)}
 .gantt-bar.urgent{background:var(--p-urgent)}
@@ -868,7 +871,7 @@ function renderGantt() {
       const leftPct = (visibleStart / range) * 100;
       const widthPct = ((visibleEnd - visibleStart + 1) / range) * 100;
       const color = entry.kind === 'project' ? `background:${item.color}` : '';
-      barHtml = `<div class="gantt-bar ${priority} ${entry.kind === 'project' ? 'project' : ''} ${item.completed ? 'done' : ''}" data-task-id="${entry.kind === 'task' ? item.id : ''}" data-project-id="${entry.kind === 'project' ? item.id : ''}" style="left:${leftPct}%;width:${widthPct}%;--progress:${item.completed ? 100 : 0}%;${color}" title="더블클릭하여 수정 · ${esc(label)} · ${rawStart} ~ ${rawEnd}"><span>${esc(label)}</span></div>`;
+      barHtml = `<div class="gantt-bar ${priority} ${entry.kind === 'project' ? 'project' : ''} ${item.completed ? 'done' : ''}" data-task-id="${entry.kind === 'task' ? item.id : ''}" data-project-id="${entry.kind === 'project' ? item.id : ''}" data-kind="${entry.kind}" data-start="${rawStart}" data-end="${rawEnd}" style="left:${leftPct}%;width:${widthPct}%;--progress:${item.completed ? 100 : 0}%;${color}" title="드래그하여 기간 이동 · 양끝을 드래그해 시작/종료일 조정 · 더블클릭하여 상세 수정"><i class="gantt-handle left" aria-label="시작일 조절"></i><span>${esc(label)}</span><i class="gantt-handle right" aria-label="종료일 조절"></i></div>`;
     }
     headerHtml += `<div class="gantt-row">
       <div class="gantt-row-title" title="${esc(label)}"><i class="gantt-dot" style="background:${entry.kind === 'project' ? item.color : `var(--p-${priority})`}"></i><span style="overflow:hidden;text-overflow:ellipsis">${esc(label)}</span><small class="gantt-status">${status}</small></div>
@@ -877,7 +880,51 @@ function renderGantt() {
   });
   headerHtml += '</div></div>';
   container.innerHTML = headerHtml;
+  let drag = null;
+  const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+  const drawPreview = (bar, fromDate, toDate) => {
+    const a = Math.round((fromIso(fromDate) - start) / 86400000);
+    const b = Math.round((fromIso(toDate) - start) / 86400000);
+    const left = clamp(a, 0, range - 1), right = clamp(b, 0, range - 1);
+    bar.style.left = `${(left / range) * 100}%`;
+    bar.style.width = `${((Math.max(left, right) - left + 1) / range) * 100}%`;
+    bar.title = `${fromDate} ~ ${toDate} · 저장하려면 마우스를 놓으세요`;
+  };
   container.querySelectorAll('.gantt-bar').forEach(bar => {
+    bar.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      const timeline = bar.parentElement;
+      const dayWidth = timeline.getBoundingClientRect().width / range;
+      const mode = e.target.closest('.gantt-handle')?.classList.contains('left') ? 'start' : e.target.closest('.gantt-handle')?.classList.contains('right') ? 'end' : 'move';
+      drag = { bar, mode, x:e.clientX, dayWidth, startDate:bar.dataset.start, endDate:bar.dataset.end, moved:false };
+      bar.classList.add('dragging'); bar.setPointerCapture?.(e.pointerId); e.preventDefault();
+    });
+    bar.addEventListener('pointermove', e => {
+      if (!drag || drag.bar !== bar) return;
+      const delta = Math.round((e.clientX - drag.x) / drag.dayWidth);
+      if (!delta) return;
+      drag.moved = true;
+      let a = drag.startDate, b = drag.endDate;
+      if (drag.mode === 'move') { a = addDays(drag.startDate, delta); b = addDays(drag.endDate, delta); }
+      else if (drag.mode === 'start') { a = addDays(drag.startDate, delta); if (a > b) a = b; }
+      else { b = addDays(drag.endDate, delta); if (b < a) b = a; }
+      drag.previewStart = a; drag.previewEnd = b; drawPreview(bar, a, b);
+    });
+    bar.addEventListener('pointerup', e => {
+      if (!drag || drag.bar !== bar) return;
+      bar.releasePointerCapture?.(e.pointerId);
+      bar.classList.remove('dragging');
+      if (drag.moved) {
+        const id = bar.dataset.kind === 'project' ? bar.dataset.projectId : bar.dataset.taskId;
+        if (bar.dataset.kind === 'project') {
+          const p = state.projects.find(x => x.id === id); if (p) { p.startDate = drag.previewStart; p.endDate = drag.previewEnd; }
+        } else {
+          const t = state.tasks.find(x => x.id === id); if (t) { t.startDate = drag.previewStart; t.endDate = drag.previewEnd; t.targetDate = drag.previewEnd; }
+        }
+        save(); renderGantt(); toast('간트 기간을 변경했습니다.');
+      }
+      drag = null;
+    });
     bar.addEventListener('dblclick', () => bar.dataset.taskId ? openEditTask(bar.dataset.taskId) : openEditProject(bar.dataset.projectId));
   });
 }
