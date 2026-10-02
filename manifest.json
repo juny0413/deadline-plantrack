@@ -1,7 +1,7 @@
 {
-  "name": "TimeBoard Pro 일정관리 스케줄러",
-  "short_name": "TimeBoard Pro",
-  "description": "TimeBoard Pro 일정관리 스케줄러 원본 앱",
+  "name": "데드라인 플랜트랙",
+  "short_name": "데드라인 플랜트랙",
+  "description": "데드라인 플랜트랙 원본 앱",
   "lang": "ko-KR",
   "start_url": "./",
   "scope": "./",

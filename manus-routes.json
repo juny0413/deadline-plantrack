@@ -1,5 +1,5 @@
 {
   "routes": [
-    { "path": "/", "title": "TimeBoard Pro 일정관리 스케줄러" }
+    { "path": "/", "title": "데드라인 플랜트랙" }
   ]
 }
