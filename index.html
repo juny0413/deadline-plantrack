@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#4f5bd5">
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icons/icon-192.png">
-<title>TimeBoard Pro — 일정관리 스케줄러 풀버전</title>
+<title>프로젝트 플랜</title>
 <style>
 :root{
   --bg:#f4f5f9; --surface:#ffffff; --surface-2:#f8f9fc; --ink:#1b2333; --muted:#687085; --faint:#a3a9b8;
@@ -256,7 +256,7 @@ kbd{font-family:inherit;font-size:.78em;padding:1px 6px;border:1px solid var(--l
 <body>
 <header class="topbar">
   <div class="brand">
-    <h1>TimeBoard</h1><span class="ver">Pro</span>
+    <h1>프로젝트 플랜</h1>
     <span class="today" id="today-label"></span>
   </div>
   <nav class="tabs" id="tabs">
@@ -513,7 +513,8 @@ function addMonths(s, n) { const d = fromIso(s); d.setMonth(d.getMonth() + n); r
 function toMin(t) { if (!t) return null; const [h, m] = t.split(':').map(Number); return h * 60 + m; }
 function toTime(min) { return `${pad(Math.floor(min / 60))}:${pad(min % 60)}`; }
 
-const KEY = 'timeboard_pro_full_v1';
+const KEY = 'project_plan_full_v1';
+const LEGACY_KEY = 'timeboard_pro_full_v1';
 const COLORS = ['#4f5bd5', '#188a4c', '#c27a06', '#cf3a3a', '#0e8a9e', '#8b47c9'];
 
 const state = {
@@ -529,12 +530,13 @@ const state = {
 
 function save() { localStorage.setItem(KEY, JSON.stringify(state)); }
 function load() {
-  const raw = localStorage.getItem(KEY);
+  const raw = localStorage.getItem(KEY) || localStorage.getItem(LEGACY_KEY);
   if (raw) {
     try {
       const d = JSON.parse(raw);
       Object.assign(state, d);
       state.selectedTasks = new Set();
+      if (!localStorage.getItem(KEY)) localStorage.setItem(KEY, JSON.stringify(state));
     } catch (e) { console.error(e); }
   }
   document.documentElement.dataset.theme = state.settings.theme;
@@ -965,7 +967,7 @@ $('#btn-print').onclick = () => {
   if (action) {
     window.print();
   } else {
-    let ics = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//TimeBoard Pro//KO\n";
+    let ics = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//프로젝트 플랜//KO\n";
     state.tasks.forEach(t => {
       if (t.targetDate) {
         const d = t.targetDate.replace(/-/g, '');
@@ -975,7 +977,7 @@ $('#btn-print').onclick = () => {
     ics += "END:VCALENDAR";
     const blob = new Blob([ics], { type: 'text/calendar' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `timeboard_calendar_${today()}.ics`; a.click();
+    a.download = `project_plan_calendar_${today()}.ics`; a.click();
   }
 };
 

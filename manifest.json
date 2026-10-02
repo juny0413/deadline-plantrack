@@ -1,7 +1,7 @@
 {
-  "name": "TimeBoard Pro 일정관리 스케줄러",
-  "short_name": "TimeBoard Pro",
-  "description": "TimeBoard Pro 일정관리 스케줄러 원본 앱",
+  "name": "프로젝트 플랜",
+  "short_name": "프로젝트 플랜",
+  "description": "프로젝트 플랜 원본 앱",
   "lang": "ko-KR",
   "start_url": "./",
   "scope": "./",
