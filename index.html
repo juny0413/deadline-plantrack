@@ -409,11 +409,16 @@ kbd{font-family:inherit;font-size:.78em;padding:1px 6px;border:1px solid var(--l
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
         <div>
           <h2 style="font-size:1.1rem;font-weight:700">간트 차트 (프로젝트 타임라인)</h2>
-          <p style="font-size:.76rem;color:var(--muted);margin-top:2px">오늘을 기준으로 마감일과 진행 상태를 한눈에 확인하세요.</p>
+          <p style="font-size:.76rem;color:var(--muted);margin-top:2px">시작일을 조정해 원하는 기간의 마감일과 진행 상태를 확인하세요.</p>
         </div>
-        <div>
-          <label for="gantt-range" style="font-size:.76rem;color:var(--muted);margin-right:5px">표시 기간</label>
-          <select id="gantt-range" style="width:auto;padding:5px 8px;font-size:.8rem">
+        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+          <button class="btn sm" id="gantt-prev" type="button" title="표시 기간만큼 이전으로 이동">‹ 이전</button>
+          <button class="btn sm" id="gantt-today" type="button">오늘</button>
+          <button class="btn sm" id="gantt-next" type="button" title="표시 기간만큼 다음으로 이동">다음 ›</button>
+          <label for="gantt-start" style="font-size:.76rem;color:var(--muted);margin-left:4px">시작일</label>
+          <input id="gantt-start" type="date" style="width:auto;padding:5px 8px;font-size:.8rem" aria-label="간트 차트 시작일">
+          <label for="gantt-range" style="font-size:.76rem;color:var(--muted);margin-left:4px">기간</label>
+          <select id="gantt-range" style="width:auto;padding:5px 8px;font-size:.8rem" aria-label="간트 차트 표시 기간">
             <option value="14">2주</option>
             <option value="28" selected>4주</option>
             <option value="56">8주</option>
@@ -819,7 +824,10 @@ function renderMonth() {
 function renderGantt() {
   const container = $('#gantt-container'); container.innerHTML = '';
   const range = +$('#gantt-range').value;
-  const start = fromIso(today());
+  const startInput = $('#gantt-start');
+  if (!startInput.value) startInput.value = today();
+  const start = fromIso(startInput.value);
+  const todayDiff = Math.round((fromIso(today()) - start) / 86400000);
   const dayNames = ['일','월','화','수','목','금','토'];
   const days = [];
   for (let i = 0; i < range; i++) {
@@ -828,7 +836,7 @@ function renderGantt() {
   }
   const validTasks = state.tasks.filter(t => t.targetDate).sort((a,b) => a.targetDate.localeCompare(b.targetDate));
   const dayCols = `repeat(${range}, minmax(32px, 1fr))`;
-  let headerHtml = `<div class="gantt-inner" style="--gantt-days:${range};--gantt-today:0">
+  let headerHtml = `<div class="gantt-inner" style="--gantt-days:${range};--gantt-today:${todayDiff}">
     <div class="gantt-header">
       <div class="gantt-title-col">프로젝트 / 작업 <span style="font-weight:500;font-size:.68rem">(${validTasks.length}건)</span></div>
       <div class="gantt-days" style="grid-template-columns:${dayCols}">`;
@@ -851,7 +859,7 @@ function renderGantt() {
     }
     headerHtml += `<div class="gantt-row">
       <div class="gantt-row-title" title="${esc(t.text)}"><i class="gantt-dot" style="background:var(--p-${priority})"></i><span style="overflow:hidden;text-overflow:ellipsis">${esc(t.text)}</span><small class="gantt-status">${status}</small></div>
-      <div class="gantt-timeline" style="--gantt-days:${range};--gantt-today:0">${barHtml}</div>
+      <div class="gantt-timeline" style="--gantt-days:${range};--gantt-today:${todayDiff}">${barHtml}</div>
     </div>`;
   });
   headerHtml += '</div></div>';
@@ -1115,6 +1123,20 @@ $('#scratch-in').addEventListener('keydown', e => {
     state.notes.push(v); e.target.value = ''; save(); renderSidebar();
   }
 });
+
+/* Gantt date navigation */
+function shiftGanttStart(days) {
+  const input = $('#gantt-start');
+  const base = input.value ? fromIso(input.value) : fromIso(today());
+  base.setDate(base.getDate() + days);
+  input.value = iso(base);
+  renderGantt();
+}
+$('#gantt-range').addEventListener('change', () => renderGantt());
+$('#gantt-start').addEventListener('change', () => renderGantt());
+$('#gantt-prev').onclick = () => shiftGanttStart(-Number($('#gantt-range').value));
+$('#gantt-next').onclick = () => shiftGanttStart(Number($('#gantt-range').value));
+$('#gantt-today').onclick = () => { $('#gantt-start').value = today(); renderGantt(); };
 
 /* Init */
 load();
