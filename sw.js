@@ -1,4 +1,4 @@
-const CACHE = 'deadline-plantrack-1.0.4';
+const CACHE = 'deadline-plantrack-1.0.5';
 const ASSETS = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));

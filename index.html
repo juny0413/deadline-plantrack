@@ -224,10 +224,11 @@ kbd{font-family:inherit;font-size:.78em;padding:1px 6px;border:1px solid var(--l
 .gantt-row-title .gantt-status{font-size:.65rem;color:var(--muted);margin-left:auto;flex:none}
 .gantt-timeline{flex:1;display:grid;position:relative;min-height:48px;align-items:center;background-image:linear-gradient(to right,var(--line) 1px,transparent 1px);background-size:calc(100% / var(--gantt-days)) 100%}
 .gantt-timeline::after{content:"";position:absolute;top:0;bottom:0;left:calc(var(--gantt-today) * 100% / var(--gantt-days));border-left:2px solid var(--accent);opacity:.5;pointer-events:none}
-.gantt-bar{position:absolute;height:24px;border-radius:6px;color:#fff;font-size:.68rem;display:flex;align-items:center;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 5px rgba(20,25,45,.16);z-index:1;min-width:10px}
+.gantt-bar{position:absolute;height:24px;cursor:pointer;border-radius:6px;color:#fff;font-size:.68rem;display:flex;align-items:center;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 5px rgba(20,25,45,.16);z-index:1;min-width:10px}
 .gantt-bar::after{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--progress,0%);background:rgba(255,255,255,.24);pointer-events:none}
 .gantt-bar span{position:relative;z-index:1;overflow:hidden;text-overflow:ellipsis}
 .gantt-bar.done{background:#8b95a7 !important;box-shadow:none}
+.gantt-bar.project{height:28px;border-radius:7px;font-weight:800;box-shadow:0 2px 6px rgba(20,25,45,.18)}
 .gantt-bar.urgent{background:var(--p-urgent)}
 .gantt-bar.high{background:var(--p-high)}
 .gantt-bar.mid{background:var(--p-mid);color:#2b2100}
@@ -479,9 +480,13 @@ kbd{font-family:inherit;font-size:.78em;padding:1px 6px;border:1px solid var(--l
     <div class="mbody">
       <div class="field"><input type="text" id="m-title" style="font-size:1.1rem;font-weight:700" placeholder="할 일 제목"></div>
       <div class="grid3">
-        <div class="field"><label>날짜</label><input type="date" id="m-date"></div>
-        <div class="field"><label>시작</label><input type="time" id="m-start" step="300"></div>
-        <div class="field"><label>종료</label><input type="time" id="m-end" step="300"></div>
+        <div class="field"><label>시작일</label><input type="date" id="m-start-date"></div>
+        <div class="field"><label>종료일</label><input type="date" id="m-end-date"></div>
+        <div class="field"><label>마감일</label><input type="date" id="m-date"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>시작 시간</label><input type="time" id="m-start" step="300"></div>
+        <div class="field"><label>종료 시간</label><input type="time" id="m-end" step="300"></div>
       </div>
       <div class="grid3">
         <div class="field"><label>담당자</label><select id="m-assignee"></select></div>
@@ -655,7 +660,7 @@ function renderSidebar() {
     const pct = ts.length ? Math.round((done / ts.length) * 100) : 0;
     pl.innerHTML += `<div class="pitem">
       <i class="pdot" style="background:${p.color}"></i>
-      <span class="pname">${esc(p.name)}</span>
+      <span class="pname" title="${p.startDate || ''} ~ ${p.endDate || ''}">${esc(p.name)}</span>
       <span class="pcount">${done}/${ts.length}</span>
     </div>
     <div class="pprog"><i style="width:${pct}%;background:${p.color}"></i></div>`;
@@ -834,36 +839,47 @@ function renderGantt() {
     const cur = new Date(start); cur.setDate(start.getDate() + i);
     days.push({ date: iso(cur), day: cur.getDate(), month: cur.getMonth() + 1, dow: cur.getDay() });
   }
-  const validTasks = state.tasks.filter(t => t.targetDate).sort((a,b) => a.targetDate.localeCompare(b.targetDate));
+  const taskEntries = state.tasks.filter(t => t.targetDate || t.startDate || t.endDate).map(t => ({ kind:'task', task:t, startDate:t.startDate || t.targetDate || t.endDate, endDate:t.endDate || t.targetDate || t.startDate }));
+  const projectEntries = state.projects.filter(p => p.startDate || p.endDate).map(p => ({ kind:'project', project:p, startDate:p.startDate || p.endDate, endDate:p.endDate || p.startDate }));
+  const entries = [...projectEntries, ...taskEntries].sort((a,b) => a.startDate.localeCompare(b.startDate));
   const dayCols = `repeat(${range}, minmax(32px, 1fr))`;
   let headerHtml = `<div class="gantt-inner" style="--gantt-days:${range};--gantt-today:${todayDiff}">
     <div class="gantt-header">
-      <div class="gantt-title-col">프로젝트 / 작업 <span style="font-weight:500;font-size:.68rem">(${validTasks.length}건)</span></div>
+      <div class="gantt-title-col">프로젝트 / 작업 <span style="font-weight:500;font-size:.68rem">(${entries.length}건)</span></div>
       <div class="gantt-days" style="grid-template-columns:${dayCols}">`;
   days.forEach(d => {
     headerHtml += `<div class="gantt-day ${d.date === today() ? 'today' : ''} ${d.dow === 0 || d.dow === 6 ? 'weekend' : ''}">${d.month}/${d.day}<b>${dayNames[d.dow]}</b></div>`;
   });
   headerHtml += `</div></div><div class="gantt-body">`;
-  if (!validTasks.length) headerHtml += '<div class="gantt-empty">마감일이 지정된 작업이 없습니다.<br><span style="font-size:.75rem">목록에서 작업에 마감일을 지정하면 타임라인에 표시됩니다.</span></div>';
-  validTasks.forEach(t => {
-    const diff = Math.round((fromIso(t.targetDate) - start) / 86400000);
-    const inRange = diff >= 0 && diff < range;
-    const priority = t.priority || 'mid';
-    const progress = t.completed ? 100 : 0;
-    const status = t.completed ? '완료' : (diff < 0 ? '지연' : '진행');
+  if (!entries.length) headerHtml += '<div class="gantt-empty">등록된 프로젝트나 작업이 없습니다.<br><span style="font-size:.75rem">프로젝트를 추가하거나 작업을 등록하면 더블클릭으로 기간을 수정할 수 있습니다.</span></div>';
+  entries.forEach(entry => {
+    const item = entry.kind === 'project' ? entry.project : entry.task;
+    const rawStart = entry.startDate || today(), rawEnd = entry.endDate || rawStart;
+    const taskStart = fromIso(rawStart), taskEnd = fromIso(rawEnd < rawStart ? rawStart : rawEnd);
+    const startDiff = Math.round((taskStart - start) / 86400000), endDiff = Math.round((taskEnd - start) / 86400000);
+    const visibleStart = Math.max(0, startDiff), visibleEnd = Math.min(range - 1, endDiff);
+    const inRange = visibleStart <= visibleEnd;
+    const priority = entry.kind === 'project' ? 'low' : (['urgent','high','mid','low'].includes(item.priority) ? item.priority : 'mid');
+    const status = entry.kind === 'project' ? '프로젝트' : (item.completed ? '완료' : (endDiff < 0 ? '지연' : '진행'));
+    const project = entry.kind === 'task' ? state.projects.find(p => p.id === item.projectId) : null;
+    const label = entry.kind === 'project' ? `프로젝트 · ${item.name}` : (project ? `${project.name} · ${item.text}` : item.text);
     let barHtml = '';
     if (inRange) {
-      const leftPct = (diff / range) * 100;
-      const widthPct = Math.max(100 / range, Math.min(18, 100 / range * 1.8));
-      barHtml = `<div class="gantt-bar ${priority} ${t.completed ? 'done' : ''}" style="left:${leftPct}%;width:${widthPct}%;--progress:${progress}%" title="${esc(t.text)} · 마감 ${t.targetDate} · ${status}"><span>${esc(t.text)}</span></div>`;
+      const leftPct = (visibleStart / range) * 100;
+      const widthPct = ((visibleEnd - visibleStart + 1) / range) * 100;
+      const color = entry.kind === 'project' ? `background:${item.color}` : '';
+      barHtml = `<div class="gantt-bar ${priority} ${entry.kind === 'project' ? 'project' : ''} ${item.completed ? 'done' : ''}" data-task-id="${entry.kind === 'task' ? item.id : ''}" data-project-id="${entry.kind === 'project' ? item.id : ''}" style="left:${leftPct}%;width:${widthPct}%;--progress:${item.completed ? 100 : 0}%;${color}" title="더블클릭하여 수정 · ${esc(label)} · ${rawStart} ~ ${rawEnd}"><span>${esc(label)}</span></div>`;
     }
     headerHtml += `<div class="gantt-row">
-      <div class="gantt-row-title" title="${esc(t.text)}"><i class="gantt-dot" style="background:var(--p-${priority})"></i><span style="overflow:hidden;text-overflow:ellipsis">${esc(t.text)}</span><small class="gantt-status">${status}</small></div>
+      <div class="gantt-row-title" title="${esc(label)}"><i class="gantt-dot" style="background:${entry.kind === 'project' ? item.color : `var(--p-${priority})`}"></i><span style="overflow:hidden;text-overflow:ellipsis">${esc(label)}</span><small class="gantt-status">${status}</small></div>
       <div class="gantt-timeline" style="--gantt-days:${range};--gantt-today:${todayDiff}">${barHtml}</div>
     </div>`;
   });
   headerHtml += '</div></div>';
   container.innerHTML = headerHtml;
+  container.querySelectorAll('.gantt-bar').forEach(bar => {
+    bar.addEventListener('dblclick', () => bar.dataset.taskId ? openEditTask(bar.dataset.taskId) : openEditProject(bar.dataset.projectId));
+  });
 }
 
 /* 5. Analytics Dashboard */
@@ -953,7 +969,8 @@ $('#add-btn').onclick = () => {
   }
   state.tasks.unshift({
     id: uid(), text: p.text, completed: false,
-    targetDate: p.date || state.date, startTime: p.start, endTime: p.end,
+    targetDate: p.date || state.date, startDate: p.date || state.date, endDate: p.date || state.date,
+    startTime: p.start, endTime: p.end,
     priority: p.priority, energy: state.inputEnergy || 'low',
     assigneeId: p.assignee, projectId: pId, tags: p.tags, notes: ''
   });
@@ -1066,7 +1083,9 @@ function openEditTask(id) {
   const t = state.tasks.find(x => x.id === id); if (!t) return;
   editingTaskId = id;
   $('#m-title').value = t.text;
-  $('#m-date').value = t.targetDate || '';
+  $('#m-start-date').value = t.startDate || t.targetDate || '';
+  $('#m-end-date').value = t.endDate || t.targetDate || '';
+  $('#m-date').value = t.targetDate || t.endDate || '';
   $('#m-start').value = t.startTime || '';
   $('#m-end').value = t.endTime || '';
   $('#m-prio').value = t.priority || 'none';
@@ -1079,7 +1098,9 @@ $('#m-save').onclick = () => {
   const t = state.tasks.find(x => x.id === editingTaskId);
   if (t) {
     t.text = $('#m-title').value.trim() || t.text;
-    t.targetDate = $('#m-date').value || null;
+    t.startDate = $('#m-start-date').value || $('#m-date').value || null;
+    t.endDate = $('#m-end-date').value || $('#m-date').value || t.startDate || null;
+    t.targetDate = $('#m-date').value || t.endDate || t.startDate || null;
     t.startTime = $('#m-start').value || null;
     t.endTime = $('#m-end').value || null;
     t.priority = $('#m-prio').value;
@@ -1102,6 +1123,16 @@ $('#theme-btn').onclick = () => {
   save();
 };
 
+function openEditProject(id) {
+  const p = state.projects.find(x => x.id === id); if (!p) return;
+  const name = prompt('프로젝트 이름:', p.name);
+  if (!name || !name.trim()) return;
+  const startDate = prompt('프로젝트 시작일 (YYYY-MM-DD):', p.startDate || today());
+  const endDate = prompt('프로젝트 종료일 (YYYY-MM-DD):', p.endDate || startDate || today());
+  p.name = name.trim(); p.startDate = startDate || null; p.endDate = endDate || p.startDate || null;
+  save(); render(); toast('프로젝트 기간을 수정했습니다.');
+}
+
 /* Member Add */
 $('#member-add').onclick = () => {
   const name = prompt('새 팀원/담당자 이름:');
@@ -1113,7 +1144,9 @@ $('#member-add').onclick = () => {
 $('#proj-add').onclick = () => {
   const name = prompt('새 프로젝트 이름:');
   if (name && name.trim()) {
-    state.projects.push({ id: uid(), name: name.trim(), color: COLORS[state.projects.length % COLORS.length] });
+    const startDate = prompt('프로젝트 시작일 (YYYY-MM-DD, 선택):', today()) || null;
+    const endDate = prompt('프로젝트 종료일 (YYYY-MM-DD, 선택):', startDate || today()) || null;
+    state.projects.push({ id: uid(), name: name.trim(), startDate, endDate, color: COLORS[state.projects.length % COLORS.length] });
     save(); renderSidebar();
   }
 };
