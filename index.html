@@ -743,6 +743,14 @@ function toggleSelectTask(id) {
   $('#batch-count').textContent = `${state.selectedTasks.size}개 선택됨`;
 }
 
+/* Shared task date helpers */
+function taskStartDate(t) { return t.startDate || t.targetDate || t.endDate || null; }
+function taskEndDate(t) { return t.endDate || t.targetDate || t.startDate || null; }
+function taskCoversDate(t, ds) {
+  const a = taskStartDate(t), b = taskEndDate(t);
+  return !!a && !!b && a <= ds && ds <= b;
+}
+
 /* 2. Day & Week Timelines */
 function renderDay() {
   $('#day-title').textContent = state.date;
@@ -756,7 +764,7 @@ function renderDay() {
   col.className = 'col' + (state.date === today() ? ' today' : '');
   col.style.height = (state.settings.dayEnd - state.settings.dayStart) * 48 + 'px';
 
-  const ts = state.tasks.filter(t => t.targetDate === state.date && t.startTime);
+  const ts = state.tasks.filter(t => taskStartDate(t) === state.date && t.startTime);
   ts.forEach(t => {
     const s = toMin(t.startTime) - state.settings.dayStart * 60;
     const e = (t.endTime ? toMin(t.endTime) : toMin(t.startTime) + 60) - state.settings.dayStart * 60;
@@ -792,7 +800,7 @@ function renderWeek() {
     const col = document.createElement('div');
     col.className = 'col' + (ds === today() ? ' today' : '');
     col.style.height = (state.settings.dayEnd - state.settings.dayStart) * 48 + 'px';
-    const ts = state.tasks.filter(t => t.targetDate === ds && t.startTime);
+    const ts = state.tasks.filter(t => taskStartDate(t) === ds && t.startTime);
     ts.forEach(t => {
       const s = toMin(t.startTime) - state.settings.dayStart * 60;
       const e = (t.endTime ? toMin(t.endTime) : toMin(t.startTime) + 60) - state.settings.dayStart * 60;
@@ -820,7 +828,7 @@ function renderMonth() {
   for (let i = 0; i < first; i++) g.innerHTML += '<div class="mcell other"></div>';
   for (let d = 1; d <= dim; d++) {
     const ds = `${y}-${pad(m + 1)}-${pad(d)}`;
-    const ts = state.tasks.filter(t => t.targetDate === ds);
+    const ts = state.tasks.filter(t => taskCoversDate(t, ds));
     g.innerHTML += `<div class="mcell ${ds === today() ? 'today' : ''}" onclick="selectDate('${ds}');state.view='day';render()">
       <div class="dn"><span>${d}</span><small>${ts.length ? ts.length + '건' : ''}</small></div>
       ${ts.slice(0, 2).map(t => `<div class="mini-chip">${esc(t.text)}</div>`).join('')}
@@ -921,7 +929,7 @@ function renderGantt() {
         } else {
           const t = state.tasks.find(x => x.id === id); if (t) { t.startDate = drag.previewStart; t.endDate = drag.previewEnd; t.targetDate = drag.previewEnd; }
         }
-        save(); renderGantt(); toast('간트 기간을 변경했습니다.');
+        save(); render(); toast('간트 기간을 변경했습니다.');
       }
       drag = null;
     });
