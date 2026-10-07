@@ -675,11 +675,14 @@ function renderSidebar() {
     const ts = state.tasks.filter(t => t.projectId === p.id);
     const done = ts.filter(t => t.completed).length;
     const pct = ts.length ? Math.round((done / ts.length) * 100) : 0;
-    const daysLeft = p.endDate ? Math.ceil((fromIso(p.endDate) - fromIso(today())) / 86400000) : null;
+    const linkedDates = ts.flatMap(t => [t.startDate || t.targetDate, t.endDate || t.targetDate]).filter(Boolean).sort();
+    const displayStart = p.startDate || linkedDates[0] || '';
+    const displayEnd = p.endDate || linkedDates[linkedDates.length - 1] || '';
+    const daysLeft = displayEnd ? Math.ceil((fromIso(displayEnd) - fromIso(today())) / 86400000) : null;
     const alert = daysLeft !== null && daysLeft < 0 ? `<span class="project-alert">마감 지연 ${Math.abs(daysLeft)}일</span>` : daysLeft !== null && daysLeft <= 3 ? `<span class="project-alert soon">D-${daysLeft}</span>` : '';
     pl.innerHTML += `<div class="pitem" title="더블클릭하여 프로젝트 수정">
       <input class="pcolor" type="color" value="${p.color}" data-project-color="${p.id}" aria-label="${esc(p.name)} 상태 색상">
-      <span class="pname" title="${p.startDate || ''} ~ ${p.endDate || ''}">${esc(p.name)}${alert}</span>
+      <span class="pname" title="${displayStart} ~ ${displayEnd}">${esc(p.name)}${alert}</span>
       <span class="pcount">${done}/${ts.length}</span>
     </div>
     <div class="pprog"><i style="width:${pct}%;background:${p.color}"></i></div>`;
@@ -881,7 +884,14 @@ function renderGantt() {
     days.push({ date: iso(cur), day: cur.getDate(), month: cur.getMonth() + 1, dow: cur.getDay() });
   }
   const taskEntries = state.tasks.filter(t => t.targetDate || t.startDate || t.endDate).map(t => ({ kind:'task', task:t, startDate:t.startDate || t.targetDate || t.endDate, endDate:t.endDate || t.targetDate || t.startDate }));
-  const projectEntries = state.projects.filter(p => p.startDate || p.endDate).map(p => ({ kind:'project', project:p, startDate:p.startDate || p.endDate, endDate:p.endDate || p.startDate }));
+  const projectEntries = state.projects.map(p => {
+    const linked = state.tasks.filter(t => t.projectId === p.id && (t.targetDate || t.startDate || t.endDate));
+    const linkedStarts = linked.map(t => t.startDate || t.targetDate || t.endDate).filter(Boolean).sort();
+    const linkedEnds = linked.map(t => t.endDate || t.targetDate || t.startDate).filter(Boolean).sort();
+    const startDate = p.startDate || linkedStarts[0] || (p.endDate || today());
+    const endDate = p.endDate || linkedEnds[linkedEnds.length - 1] || startDate;
+    return { kind:'project', project:p, startDate, endDate };
+  });
   const entries = [...projectEntries, ...taskEntries].sort((a,b) => a.startDate.localeCompare(b.startDate));
   const dayCols = `repeat(${range}, minmax(32px, 1fr))`;
   let headerHtml = `<div class="gantt-inner" style="--gantt-days:${range};--gantt-today:${todayDiff}">
