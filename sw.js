@@ -1,4 +1,4 @@
-const CACHE = 'deadline-plantrack-1.0.9';
+const CACHE = 'deadline-plantrack-1.1.0';
 const ASSETS = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', event => {

@@ -234,6 +234,8 @@ kbd{font-family:inherit;font-size:.78em;padding:1px 6px;border:1px solid var(--l
 .focus-controls input{width:76px;text-align:center;padding:7px;border:1px solid var(--line);border-radius:8px}
 .project-alert{font-size:.68rem;font-weight:700;color:#c0392b;margin-left:4px}
 .project-alert.soon{color:#c27a06}
+.dep-warning{color:#c0392b;font-size:.68rem;font-weight:800}
+.gantt-bar.dep-late{outline:2px solid #c0392b;outline-offset:1px}
 .pcolor{width:20px;height:20px;padding:0;border:0;background:transparent;cursor:pointer}
 .gantt-bar.done{background:#8b95a7 !important;box-shadow:none}
 .gantt-bar.project{height:28px;border-radius:7px;font-weight:800;box-shadow:0 2px 6px rgba(20,25,45,.18)}
@@ -500,6 +502,9 @@ kbd{font-family:inherit;font-size:.78em;padding:1px 6px;border:1px solid var(--l
       <div class="grid3">
         <div class="field"><label>담당자</label><select id="m-assignee"></select></div>
         <div class="field"><label>프로젝트</label><select id="m-proj"></select></div>
+        <div class="field"><label>선행 작업</label><select id="m-predecessor"><option value="">없음</option></select></div>
+      </div>
+      <div class="grid3">
         <div class="field"><label>중요도</label>
           <select id="m-prio">
             <option value="none">없음</option>
@@ -847,6 +852,20 @@ function renderMonth() {
   }
 }
 
+function getPredecessorTask(t) { return t.predecessorId ? state.tasks.find(x => x.id === t.predecessorId) : null; }
+function dependencyIsValid(t) {
+  const prev = getPredecessorTask(t);
+  return !prev || !taskEndDate(prev) || !taskStartDate(t) || taskEndDate(prev) <= taskStartDate(t);
+}
+function createsDependencyCycle(taskId, predecessorId) {
+  let cursor = predecessorId, guard = 0;
+  while (cursor && guard++ < state.tasks.length + 1) {
+    if (cursor === taskId) return true;
+    cursor = state.tasks.find(x => x.id === cursor)?.predecessorId || null;
+  }
+  return false;
+}
+
 /* 4. Gantt Chart */
 function renderGantt() {
   const container = $('#gantt-container'); container.innerHTML = '';
@@ -884,16 +903,18 @@ function renderGantt() {
     const priority = entry.kind === 'project' ? 'low' : (['urgent','high','mid','low'].includes(item.priority) ? item.priority : 'mid');
     const status = entry.kind === 'project' ? '프로젝트' : (item.completed ? '완료' : (endDiff < 0 ? '지연' : '진행'));
     const project = entry.kind === 'task' ? state.projects.find(p => p.id === item.projectId) : null;
+    const predecessor = entry.kind === 'task' ? getPredecessorTask(item) : (item.predecessorId ? state.projects.find(p => p.id === item.predecessorId) : null);
+    const dependencyLate = entry.kind === 'task' && !dependencyIsValid(item);
     const label = entry.kind === 'project' ? `프로젝트 · ${item.name}` : (project ? `${project.name} · ${item.text}` : item.text);
     let barHtml = '';
     if (inRange) {
       const leftPct = (visibleStart / range) * 100;
       const widthPct = ((visibleEnd - visibleStart + 1) / range) * 100;
       const color = entry.kind === 'project' ? `background:${item.color}` : '';
-      barHtml = `<div class="gantt-bar ${priority} ${entry.kind === 'project' ? 'project' : ''} ${item.completed ? 'done' : ''}" data-task-id="${entry.kind === 'task' ? item.id : ''}" data-project-id="${entry.kind === 'project' ? item.id : ''}" data-kind="${entry.kind}" data-start="${rawStart}" data-end="${rawEnd}" style="left:${leftPct}%;width:${widthPct}%;--progress:${item.completed ? 100 : 0}%;${color}" title="드래그하여 기간 이동 · 양끝을 드래그해 시작/종료일 조정 · 더블클릭하여 상세 수정"><i class="gantt-handle left" aria-label="시작일 조절"></i><span>${esc(label)}</span><i class="gantt-handle right" aria-label="종료일 조절"></i></div>`;
+      barHtml = `<div class="gantt-bar ${priority} ${entry.kind === 'project' ? 'project' : ''} ${item.completed ? 'done' : ''} ${dependencyLate ? 'dep-late' : ''}" data-task-id="${entry.kind === 'task' ? item.id : ''}" data-project-id="${entry.kind === 'project' ? item.id : ''}" data-kind="${entry.kind}" data-start="${rawStart}" data-end="${rawEnd}" style="left:${leftPct}%;width:${widthPct}%;--progress:${item.completed ? 100 : 0}%;${color}" title="${predecessor ? `선행: ${predecessor.text || predecessor.name}${dependencyLate ? ' · 선행 작업보다 빠른 일정' : ''} · ` : ''}드래그하여 기간 이동 · 양끝을 드래그해 시작/종료일 조정 · 더블클릭하여 상세 수정"><i class="gantt-handle left" aria-label="시작일 조절"></i><span>${esc(label)}</span><i class="gantt-handle right" aria-label="종료일 조절"></i></div>`;
     }
     headerHtml += `<div class="gantt-row">
-      <div class="gantt-row-title" title="${esc(label)}"><i class="gantt-dot" style="background:${entry.kind === 'project' ? item.color : `var(--p-${priority})`}"></i><span style="overflow:hidden;text-overflow:ellipsis">${esc(label)}</span><small class="gantt-status">${status}</small></div>
+      <div class="gantt-row-title" title="${esc(label)}"><i class="gantt-dot" style="background:${entry.kind === 'project' ? item.color : `var(--p-${priority})`}"></i><span style="overflow:hidden;text-overflow:ellipsis">${esc(label)}</span><small class="gantt-status">${status}${predecessor ? ` · 선행: ${esc(predecessor.text || predecessor.name)}` : ''}${dependencyLate ? ' · 순서 확인' : ''}</small></div>
       <div class="gantt-timeline" style="--gantt-days:${range};--gantt-today:${todayDiff}">${barHtml}</div>
     </div>`;
   });
@@ -1168,6 +1189,7 @@ function openEditTask(id) {
   $('#m-notes').value = t.notes || '';
   $('#m-assignee').innerHTML = '<option value="">선택 안 함</option>' + state.members.map(m => `<option value="${m.id}" ${t.assigneeId === m.id ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
   $('#m-proj').innerHTML = '<option value="">선택 안 함</option>' + state.projects.map(p => `<option value="${p.id}" ${t.projectId === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+  $('#m-predecessor').innerHTML = '<option value="">없음</option>' + state.tasks.filter(x => x.id !== t.id).map(x => `<option value="${x.id}" ${t.predecessorId === x.id ? 'selected' : ''}>${esc(x.text)} (${taskEndDate(x) || '날짜 없음'})</option>`).join('');
   $('#task-modal').classList.remove('hidden');
 }
 $('#m-save').onclick = () => {
@@ -1183,6 +1205,9 @@ $('#m-save').onclick = () => {
     t.notes = $('#m-notes').value;
     t.assigneeId = $('#m-assignee').value || null;
     t.projectId = $('#m-proj').value || null;
+    const nextPredecessor = $('#m-predecessor').value || null;
+    if (nextPredecessor && createsDependencyCycle(t.id, nextPredecessor)) { toast('순환 의존성은 설정할 수 없습니다.'); return; }
+    t.predecessorId = nextPredecessor;
     save(); render();
   }
   $('#task-modal').classList.add('hidden');
@@ -1205,7 +1230,10 @@ function openEditProject(id) {
   if (!name || !name.trim()) return;
   const startDate = prompt('프로젝트 시작일 (YYYY-MM-DD):', p.startDate || today());
   const endDate = prompt('프로젝트 종료일 (YYYY-MM-DD):', p.endDate || startDate || today());
-  p.name = name.trim(); p.startDate = startDate || null; p.endDate = endDate || p.startDate || null;
+  const choices = state.projects.filter(x => x.id !== id).map(x => x.name).join(', ');
+  const predecessorName = choices ? (prompt(`선행 프로젝트 이름 (선택):\n${choices}`, state.projects.find(x => x.id === p.predecessorId)?.name || '') || '').trim() : '';
+  const predecessorId = state.projects.find(x => x.id !== id && x.name === predecessorName)?.id || null;
+  p.name = name.trim(); p.startDate = startDate || null; p.endDate = endDate || p.startDate || null; p.predecessorId = predecessorId;
   save(); render(); toast('프로젝트 기간을 수정했습니다.');
 }
 
@@ -1222,7 +1250,10 @@ $('#proj-add').onclick = () => {
   if (name && name.trim()) {
     const startDate = prompt('프로젝트 시작일 (YYYY-MM-DD, 선택):', today()) || null;
     const endDate = prompt('프로젝트 종료일 (YYYY-MM-DD, 선택):', startDate || today()) || null;
-    state.projects.push({ id: uid(), name: name.trim(), startDate, endDate, color: COLORS[state.projects.length % COLORS.length] });
+    const choices = state.projects.map(p => p.name).join(', ');
+    const predecessorName = choices ? (prompt(`선행 프로젝트 이름 (선택):\n${choices}`, '') || '').trim() : '';
+    const predecessorId = state.projects.find(p => p.name === predecessorName)?.id || null;
+    state.projects.push({ id: uid(), name: name.trim(), startDate, endDate, predecessorId, color: COLORS[state.projects.length % COLORS.length] });
     save(); renderSidebar();
   }
 };
